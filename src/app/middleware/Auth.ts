@@ -9,38 +9,36 @@ import { UserModel } from "../../modules/user/user.model";
 
 export const auth = (...role: TUserRole[]) => {
   return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization;
+    let token;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
     if (!token)
       throw new AppError(
         StatusCodes.UNAUTHORIZED,
         "You have no access to this route"
       );
-   const decoded = jwt.verify(
-      token,
-      config.jwt_access_secret as string,
-    );
-    
-    
-      // decoded
-      const decodedId = (decoded as JwtPayload)?.data.id;
-      const user = await UserModel.findOne({ _id: decodedId });
-      if (!user) {
-        throw new AppError(StatusCodes.NOT_FOUND, "This user not found !");
-      }
+    const decoded = jwt.verify(token, config.jwt_access_secret as string);
 
-      const decodedRole = role.includes((decoded as JwtPayload)?.data.role);
-      if (role && !decodedRole) {
-        throw new AppError(
-          StatusCodes.UNAUTHORIZED,
-          "You have no access to this route"
-        );
-      }
-      req.user = decoded as JwtPayload;
-      next();
-    
+    // decoded
+    const decodedId = (decoded as JwtPayload)?.data.id;
+    const user = await UserModel.findOne({ _id: decodedId });
+    if (!user) {
+      throw new AppError(StatusCodes.NOT_FOUND, "This user not found !");
+    }
 
-
-
-
-
-  })};
+    const decodedRole = role.includes((decoded as JwtPayload)?.data.role);
+    if (role && !decodedRole) {
+      throw new AppError(
+        StatusCodes.UNAUTHORIZED,
+        "You have no access to this route"
+      );
+    }
+    req.user = decoded as JwtPayload;
+    next();
+  });
+};
